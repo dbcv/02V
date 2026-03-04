@@ -6,6 +6,7 @@ import time
 import threading
 import json
 import os
+from window.voiceIndex import VoiceIndexWindow
 
 # UIの設定
 ctk.set_appearance_mode("dark")
@@ -13,75 +14,7 @@ ctk.set_default_color_theme("blue")
 
 VOICE_FILE = "voice.json"
 
-class VoiceIndexWindow(ctk.CTkToplevel):
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.parent = parent
-        self.title("Voice Index")
-        self.geometry("400x600")
-        self.attributes('-topmost', True) # 常に最前面
 
-        self.setup_gui()
-        self.refresh_buttons()
-
-    def setup_gui(self):
-        self.label = ctk.CTkLabel(self, text="Voice Library", font=ctk.CTkFont(size=18, weight="bold"))
-        self.label.pack(pady=10)
-
-        self.btn_add = ctk.CTkButton(self, text="+ Add New Voice (Wait SysEx)", fg_color="orange", hover_color="#CC8400", command=self.wait_for_voice)
-        self.btn_add.pack(pady=10, padx=20, fill="x")
-
-        self.scroll_frame = ctk.CTkScrollableFrame(self, label_text="Registered Voices")
-        self.scroll_frame.pack(pady=10, padx=10, fill="both", expand=True)
-
-    def wait_for_voice(self):
-        self.btn_add.configure(text="Waiting for SysEx...", state="disabled")
-        self.parent.log("Voice Index: Waiting for SysEx from ELS-02...")
-        
-        # 記録モードを一時的に強制ONにし、次のSysExを待つスレッドを開始
-        threading.Thread(target=self._capture_thread, daemon=True).start()
-
-    def _capture_thread(self):
-        captured_data = None
-        self.parent.last_sysex = None
-        # midoのポートから直接1つメッセージを待つか、親のコールバックを利用
-        # ここではシンプルに、親が受信した最新のデータをチェックする方式
-        start_wait = time.time()
-        while time.time() - start_wait < 10: # 10秒タイムアウト
-            if self.parent.last_sysex:
-                raw_data = self.parent.last_sysex
-                print(raw_data[3], len(raw_data), raw_data[3] == 0x44)
-                if len(raw_data) >= 12 and raw_data[3] == 0x44:
-                    captured_data = raw_data[6:12]
-                    self.parent.last_sysex = None
-                    break
-            time.sleep(0.1)
-
-        if captured_data:
-            self.after(0, lambda: self.ask_voice_name(captured_data))
-        else:
-            self.parent.log("Voice Index: Timeout or Invalid SysEx.")
-        
-        self.after(0, lambda: self.btn_add.configure(text="+ Add New Voice (Wait SysEx)", state="normal"))
-
-    def ask_voice_name(self, data):
-        dialog = ctk.CTkInputDialog(text="Enter Voice Name:", title="New Voice")
-        name = dialog.get_input()
-        if name:
-            hex_data = [format(b, '02X') for b in data]
-            self.parent.voice_db[name] = hex_data
-            self.parent.save_voice_json()
-            self.refresh_buttons()
-            self.parent.log(f"Added: {name} ({hex_data})")
-
-    def refresh_buttons(self):
-        for widget in self.scroll_frame.winfo_children():
-            widget.destroy()
-        
-        for name, data in self.parent.voice_db.items():
-            btn = ctk.CTkButton(self.scroll_frame, text=name, 
-                               command=lambda d=data: self.parent.send_voice_to_uk1(d))
-            btn.pack(pady=5, padx=10, fill="x")
 
 class ELS02SysExApp(ctk.CTk):
     def __init__(self):
@@ -106,7 +39,7 @@ class ELS02SysExApp(ctk.CTk):
 
     def save_voice_json(self):
         with open(VOICE_FILE, 'w') as f:
-            json.dump(self.voice_db, f, indent=4)
+            json.dump(self.voice_db, f, indent=4, ensure_ascii=False)
 
     def setup_gui(self):
         # ... (前回のサイドバー設定は維持)
