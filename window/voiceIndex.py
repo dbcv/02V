@@ -6,11 +6,13 @@ import time
 import threading
 import json
 import os
+from window.voiceEdit import VoiceEditWindow
 
 class VoiceIndexWindow(ctk.CTkToplevel):
     def __init__(self, parent):
         super().__init__(parent)
         self.parent = parent
+        self.save_voice_json = parent.save_voice_json
         self.title("Voice Index")
         self.geometry("800x600")
         self.attributes('-topmost', True) # 常に最前面
@@ -91,7 +93,7 @@ class VoiceIndexWindow(ctk.CTkToplevel):
                 height=60,
                 fg_color="#2c3e50",
                 hover_color="#34495e",
-                command=lambda d=data: self.parent.send_voice_to_uk1(d)
+                command=lambda d=data: self.parent.send_voice_to_section("UK1", d)
             )
             play_btn.pack(pady=(5, 2), padx=10)
 
@@ -108,11 +110,5 @@ class VoiceIndexWindow(ctk.CTkToplevel):
             )
             edit_btn.pack(pady=(0, 5), padx=10)
 
-    def open_edit_dialog(self, old_name):
-        # 名前変更などの編集ダイアログ（簡易実装例）
-        new_name = ctk.CTkInputDialog(text=f"Rename '{old_name}' to:", title="Edit Voice Name").get_input()
-        if new_name and new_name != old_name:
-            self.parent.voice_db[new_name] = self.parent.voice_db.pop(old_name)
-            self.parent.save_voice_json()
-            self.refresh_buttons()
-            self.parent.log(f"Renamed: {old_name} -> {new_name}")
+    def open_edit_dialog(self, name):
+        VoiceEditWindow(self.parent, name)
