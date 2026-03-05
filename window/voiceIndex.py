@@ -14,7 +14,8 @@ class VoiceIndexWindow(ctk.CTkToplevel):
         self.parent = parent
         self.save_voice_json = parent.save_voice_json
         self.title("Voice Index")
-        self.geometry("800x600")
+        self.geometry("800x700") # ラジオボタン分、少し高さを広げました
+        self.target_section = tk.StringVar(value="UK1")
         self.attributes('-topmost', True) # 常に最前面
 
         self.setup_gui()
@@ -23,6 +24,29 @@ class VoiceIndexWindow(ctk.CTkToplevel):
     def setup_gui(self):
         self.label = ctk.CTkLabel(self, text="Voice Library", font=ctk.CTkFont(size=18, weight="bold"))
         self.label.pack(pady=10)
+
+        # --- 送信先選択セクター (2段 x 4列) ---
+        target_frame = ctk.CTkFrame(self)
+        target_frame.pack(pady=10, padx=20, fill="x")
+        
+        ctk.CTkLabel(target_frame, text="Target Section:", font=("bold", 12)).grid(row=0, column=0, columnspan=4, pady=5)
+
+        # セクションの定義
+        sections_layout = [
+            ["UK1", "UK2", "Lead1", "Lead2"],
+            ["LK1", "LK2", "PK1", "PK2"]
+        ]
+
+        for r, row_items in enumerate(sections_layout):
+            for c, sec in enumerate(row_items):
+                rb = ctk.CTkRadioButton(
+                    target_frame, 
+                    text=sec, 
+                    variable=self.target_section, 
+                    value=sec,
+                    width=80
+                )
+                rb.grid(row=r+1, column=c, padx=15, pady=5, sticky="w")
 
         self.btn_add = ctk.CTkButton(self, text="+ Add New Voice (Wait SysEx)", fg_color="orange", hover_color="#CC8400", command=self.wait_for_voice)
         self.btn_add.pack(pady=10, padx=20, fill="x")
@@ -71,21 +95,17 @@ class VoiceIndexWindow(ctk.CTkToplevel):
             self.parent.log(f"Added: {name} ({hex_data})")
 
     def refresh_buttons(self):
-        # 既存のウィジェットを削除
         for widget in self.scroll_frame.winfo_children():
             widget.destroy()
         
-        # グリッドの列の重みを設定（横に並べる数に合わせて調整可能）
         self.scroll_frame.grid_columnconfigure((0, 1, 2), weight=1)
 
         for i, (name, data) in enumerate(self.parent.voice_db.items()):
-            # 1つの音色単位の枠（200x100）
             item_frame = ctk.CTkFrame(self.scroll_frame, width=200, height=100)
             item_frame.grid(row=i // 3, column=i % 3, padx=10, pady=10)
-            item_frame.grid_propagate(False) # サイズを固定する
+            item_frame.grid_propagate(False)
 
-            # メインの音色実行ボタン（大きく配置）
-            # 上部に名前、クリックで送信
+            # 再生ボタン: 現在選択されている self.target_section.get() を使用
             play_btn = ctk.CTkButton(
                 item_frame, 
                 text=name, 
@@ -93,11 +113,10 @@ class VoiceIndexWindow(ctk.CTkToplevel):
                 height=60,
                 fg_color="#2c3e50",
                 hover_color="#34495e",
-                command=lambda d=data: self.parent.send_voice_to_section("UK1", d)
+                command=lambda d=data: self.parent.send_voice_to_section(self.target_section.get(), d)
             )
             play_btn.pack(pady=(5, 2), padx=10)
 
-            # 編集ボタン（下部に小さく配置）
             edit_btn = ctk.CTkButton(
                 item_frame, 
                 text="Edit", 

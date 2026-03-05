@@ -118,7 +118,12 @@ class ELS02SysExApp(ctk.CTk):
         params = voice_entry.get("param", [])
         
         # 1. 音色変更（前回修正いただいたロジック）
-        sections = {"UK1": 0x00, "UK2": 0x01, "LK1": 0x02, "LK2": 0x03, "PK1": 0x06, "PK2": 0x07}
+        sections = {
+        "UK1": 0x00, "UK2": 0x01,
+        "LK1": 0x02, "LK2": 0x03,
+        "Lead1": 0x04, "Lead2": 0x05,
+        "PK1": 0x06, "PK2": 0x07
+        }
         mm = sections.get(section_name, 0x00)
         header = [0x43, 0x70, 0x78, 0x44, 0x10, mm]
         
