@@ -6,7 +6,12 @@ import time
 import threading
 import json
 import os
+import pyaudio
+import wave
+import datetime
+from mido import MidiFile
 from window.voiceIndex import VoiceIndexWindow
+from window.midiRec import MidiAudioRecordingWindow
 
 # UIの設定
 ctk.set_appearance_mode("dark")
@@ -26,6 +31,8 @@ class ELS02SysExApp(ctk.CTk):
         self.inport = None
         self.outport = None
         self.last_sysex = None
+        self.audio_input_device = tk.IntVar(value=0) # デフォルトデバイスID
+        self.setup_audio_devices()
         self.voice_db = {}
         self.load_voice_json()
 
@@ -62,9 +69,16 @@ class ELS02SysExApp(ctk.CTk):
         self.out_combo = ctk.CTkComboBox(self.sidebar, values=mido.get_output_names(), command=self.change_outport)
         self.out_combo.pack(pady=10, padx=10)
 
+        ctk.CTkLabel(self.sidebar, text="Audio Input (Mic):").pack(padx=10, anchor="w")
+        self.audio_combo = ctk.CTkComboBox(self.sidebar, values=self.audio_device_names, command=self.change_audio_device)
+        self.audio_combo.pack(pady=(0, 10), padx=10)
+
         # 音色インデックスボタン
         self.btn_index = ctk.CTkButton(self.sidebar, text="音色インデックス", fg_color="purple", command=self.open_voice_index)
         self.btn_index.pack(pady=30, padx=10)
+
+        self.btn_rec_tool = ctk.CTkButton(self.sidebar, text="MIDI音声録音", fg_color="#2980b9", command=self.open_recording_tool)
+        self.btn_rec_tool.pack(pady=20, padx=10)
 
         self.main_frame = ctk.CTkFrame(self)
         self.main_frame.grid(row=0, column=1, padx=20, pady=20, sticky="nsew")
@@ -147,6 +161,49 @@ class ELS02SysExApp(ctk.CTk):
 
     def open_voice_index(self):
         VoiceIndexWindow(self)
+    def setup_audio_devices(self):
+        """システム上のオーディオ入力デバイスをスキャンしてリスト化する"""
+        self.pa = pyaudio.PyAudio()
+        self.audio_device_names = []
+        self.audio_device_indices = []
+        
+        try:
+            # デバイス数の取得
+            device_count = self.pa.get_device_count()
+            for i in range(device_count):
+                info = self.pa.get_device_info_by_index(i)
+                # 入力チャンネルを持っているデバイスのみを抽出
+                if info.get('maxInputChannels') > 0:
+                    self.audio_device_names.append(info.get('name'))
+                    self.audio_device_indices.append(i)
+        except Exception as e:
+            self.log(f"Audio Device Error: {e}")
+            self.audio_device_names = ["No Input Device Found"]
+            self.audio_device_indices = [-1]
+
+        # 現在選択されている実インデックスを保持
+        self.audio_input_index = self.audio_device_indices[0] if self.audio_device_indices else -1
+
+    def change_audio_device(self, name):
+        """コンボボックスで選択された名前からインデックスを更新する"""
+        if name in self.audio_device_names:
+            idx = self.audio_device_names.index(name)
+            self.audio_input_index = self.audio_device_indices[idx]
+            self.log(f"Audio Input changed: {name} (Index: {self.audio_input_index})")
+
+    def open_recording_tool(self):
+        """MIDI音声録音ウィンドウを立ち上げる"""
+        if self.audio_input_index == -1:
+            messagebox.showerror("Error", "有効なオーディオ入力デバイスが選択されていません。")
+            return
+        
+        # 録音ウィンドウのインスタンス化
+        MidiAudioRecordingWindow(self)
+    
+    def destroy(self):
+        if hasattr(self, 'pa'):
+            self.pa.terminate()
+        super().destroy()
 
 if __name__ == "__main__":
     app = ELS02SysExApp()

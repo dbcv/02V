@@ -6,6 +6,10 @@ import time
 import threading
 import json
 import os
+import pyaudio
+import wave
+import datetime
+from mido import MidiFile
 
 class VoiceEditWindow(ctk.CTkToplevel):
     def __init__(self, parent, voice_name):
