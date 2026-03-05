@@ -18,7 +18,7 @@ ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
 VOICE_FILE = "voice.json"
-
+DEVICE_FILE = "devices.json"
 
 
 class ELS02SysExApp(ctk.CTk):
@@ -36,7 +36,10 @@ class ELS02SysExApp(ctk.CTk):
         self.voice_db = {}
         self.load_voice_json()
 
+        self.load_device_settings()
         self.setup_gui()
+        self.restore_device_choices()
+
 
     def load_voice_json(self):
         if os.path.exists(VOICE_FILE):
@@ -88,14 +91,52 @@ class ELS02SysExApp(ctk.CTk):
     def log(self, msg):
         self.log_box.insert("end", f"[{time.strftime('%H:%M:%S')}] {msg}\n")
         self.log_box.see("end")
+    
+    def load_device_settings(self):
+        """設定ファイルを読み込む"""
+        if os.path.exists(DEVICE_FILE):
+            with open(DEVICE_FILE, 'r') as f:
+                self.device_settings = json.load(f)
+        else:
+            self.device_settings = {"midi_in": "", "midi_out": "", "audio_in": ""}
 
+    def save_device_settings(self):
+        """現在の選択をファイルに保存する"""
+        with open(DEVICE_FILE, 'w') as f:
+            json.dump(self.device_settings, f, indent=4, ensure_ascii=False)
+
+    def restore_device_choices(self):
+        """前回の設定をUIとポートに反映させる"""
+        # MIDI In
+        m_in = self.device_settings.get("midi_in")
+        if m_in in mido.get_input_names():
+            self.in_combo.set(m_in)
+            self.change_inport(m_in)
+
+        # MIDI Out
+        m_out = self.device_settings.get("midi_out")
+        if m_out in mido.get_output_names():
+            self.out_combo.set(m_out)
+            self.change_outport(m_out)
+
+        # Audio In
+        a_in = self.device_settings.get("audio_in")
+        if a_in in self.audio_device_names:
+            self.audio_combo.set(a_in)
+            self.change_audio_device(a_in)
+
+    # 既存の変更メソッドをラップして保存を実行
     def change_inport(self, name):
         if self.inport: self.inport.close()
         self.inport = mido.open_input(name, callback=self.midi_callback)
+        self.device_settings["midi_in"] = name
+        self.save_device_settings()
 
     def change_outport(self, name):
         if self.outport: self.outport.close()
         self.outport = mido.open_output(name)
+        self.device_settings["midi_out"] = name
+        self.save_device_settings()
 
     def midi_callback(self, msg):
         if msg.type == 'sysex':
@@ -185,10 +226,11 @@ class ELS02SysExApp(ctk.CTk):
         self.audio_input_index = self.audio_device_indices[0] if self.audio_device_indices else -1
 
     def change_audio_device(self, name):
-        """コンボボックスで選択された名前からインデックスを更新する"""
         if name in self.audio_device_names:
             idx = self.audio_device_names.index(name)
             self.audio_input_index = self.audio_device_indices[idx]
+            self.device_settings["audio_in"] = name
+            self.save_device_settings()
             self.log(f"Audio Input changed: {name} (Index: {self.audio_input_index})")
 
     def open_recording_tool(self):

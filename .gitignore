@@ -10,3 +10,5 @@ wheels/
 .venv
 
 Recording/
+voice.json
+devices.json
