@@ -18,7 +18,7 @@ class VoiceIndexWindow(ctk.CTkToplevel):
         self.parent = parent
         self.save_voice_json = parent.save_voice_json
         self.title("Voice Index")
-        self.geometry("800x700") # ラジオボタン分、少し高さを広げました
+        self.geometry("900x700") # ラジオボタン分、少し高さを広げました
         self.target_section = tk.StringVar(value="UK1")
         self.attributes('-topmost', True) # 常に最前面
 
@@ -93,7 +93,7 @@ class VoiceIndexWindow(ctk.CTkToplevel):
         name = dialog.get_input()
         if name:
             hex_data = [format(b, '02X') for b in data]
-            self.parent.voice_db[name] = hex_data
+            self.parent.voice_db[name] = {"voice": hex_data, "param": []}
             self.parent.save_voice_json()
             self.refresh_buttons()
             self.parent.log(f"Added: {name} ({hex_data})")
@@ -101,37 +101,39 @@ class VoiceIndexWindow(ctk.CTkToplevel):
     def refresh_buttons(self):
         for widget in self.scroll_frame.winfo_children():
             widget.destroy()
-        
-        self.scroll_frame.grid_columnconfigure((0, 1, 2), weight=1)
+
+        for col in range(5):
+            self.scroll_frame.grid_columnconfigure(col, weight=1)
 
         for i, (name, data) in enumerate(self.parent.voice_db.items()):
             item_frame = ctk.CTkFrame(self.scroll_frame, width=200, height=100)
-            item_frame.grid(row=i // 3, column=i % 3, padx=10, pady=10)
+            item_frame.grid(row=i // 5, column=i % 5, padx=5, pady=5)
             item_frame.grid_propagate(False)
 
             # 再生ボタン: 現在選択されている self.target_section.get() を使用
             play_btn = ctk.CTkButton(
                 item_frame, 
                 text=name, 
-                width=180, 
-                height=60,
+                width=100, 
+                height=30,
                 fg_color="#2c3e50",
                 hover_color="#34495e",
+                font=ctk.CTkFont(size=10),
                 command=lambda d=data: self.parent.send_voice_to_section(self.target_section.get(), d)
             )
-            play_btn.pack(pady=(5, 2), padx=10)
+            play_btn.pack(pady=(1, 2), padx=5)
 
             edit_btn = ctk.CTkButton(
                 item_frame, 
                 text="Edit", 
-                width=180, 
-                height=20, 
+                width=80, 
+                height=10, 
                 fg_color="gray",
                 hover_color="#555555",
-                font=ctk.CTkFont(size=10),
+                font=ctk.CTkFont(size=8),
                 command=lambda n=name: self.open_edit_dialog(n)
             )
-            edit_btn.pack(pady=(0, 5), padx=10)
+            edit_btn.pack(pady=(0, 1), padx=5)
 
     def open_edit_dialog(self, name):
         VoiceEditWindow(self.parent, name)

@@ -183,10 +183,12 @@ class ELS02SysExApp(ctk.CTk):
         header = [0x43, 0x70, 0x78, 0x44, 0x10, mm]
         
         # パネルセクション切り替え送信
-        panel_msg = mido.Message('sysex', data=header + [0x10, int(voice_data[0], 16)])
+        # panel_msg = mido.Message('sysex', data=header + [0x10, int(voice_data[0], 16)])
+        panel_msg = mido.Message('sysex', data=header + [0x10, int("00", 16)])
         self.outport.send(panel_msg)
         
         # ボイスデータ本体送信
+        voice_data[0] = "00"
         voice_msg = mido.Message('sysex', data=header + [int(x, 16) for x in voice_data])
         self.outport.send(voice_msg)
         
